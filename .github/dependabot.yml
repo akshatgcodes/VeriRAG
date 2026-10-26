@@ -50,6 +50,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    # torch is bumped by hand: Dependabot rewrites the pin to the Linux-only
+    # "+cpu" build (e.g. 2.14.1+cpu), which has no macOS wheel and breaks local installs.
+    ignore:
+      - dependency-name: "torch"
 
   # Docker: base images in Dockerfile
   - package-ecosystem: "docker"
