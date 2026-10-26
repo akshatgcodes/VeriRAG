@@ -1,16 +1,18 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch
-transformers
-accelerate
-sentence-transformers
-faiss-cpu
-bm25s
-numpy
-requests
-python-dotenv
-pypdf
-streamlit
-datasets
-pytest
+# Pinned to the versions tested together; Dependabot opens PRs to bump them.
+torch==2.14.1
+transformers==5.20.2
+accelerate==1.15.0
+sentence-transformers==6.2.0
+faiss-cpu==1.15.1
+bm25s==0.3.15
+numpy==2.4.6
+requests==2.34.2
+urllib3==2.8.0
+python-dotenv==1.2.4
+pypdf==6.21.2
+streamlit==1.66.1
+datasets==5.1.0
+pytest==9.1.1
 # Primary verifier. Optional: without it, VeriRAG falls back to the DeBERTa NLI verifier.
 minicheck @ git+https://github.com/Liyan06/MiniCheck.git@main
