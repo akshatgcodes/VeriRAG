@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers
+sentence-transformers
+faiss-cpu
+bm25s
+numpy
+requests
+python-dotenv
+pypdf
+streamlit
+datasets
+pytest
+# Primary verifier. Optional: without it, VeriRAG falls back to the DeBERTa NLI verifier.
+minicheck @ git+https://github.com/Liyan06/MiniCheck.git@main

@@ -1,0 +1,4 @@
+{"query": "Who created Python?", "relevant_doc_ids": ["python.md"]}
+{"query": "When did Python 2 stop getting security updates?", "relevant_doc_ids": ["python.md"]}
+{"query": "Which building took the title of tallest structure in 1930?", "relevant_doc_ids": ["eiffel_tower.md"]}
+{"query": "What event was the Paris iron tower built for?", "relevant_doc_ids": ["eiffel_tower.md"]}
