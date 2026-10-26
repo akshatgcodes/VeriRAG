@@ -138,6 +138,48 @@ jobs:
             )
           done
 
+  # The `ci` job only installs the light pyproject extras. These two jobs install the
+  # real model stack, so a Dependabot bump that breaks it fails CI and is never
+  # auto-merged (dependabot-auto-merge.yml waits on this whole workflow).
+  full-stack:
+    name: full stack (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      # torch before faiss: two OpenMP runtimes segfault on macOS otherwise.
+      - name: Import every runtime dependency
+        run: |
+          python -c "import torch, faiss, bm25s, transformers, sentence_transformers, streamlit, pypdf
+          from minicheck.minicheck import MiniCheck
+          import verirag.pipeline, verirag.ingest
+          print('torch', torch.__version__)"
+      - run: python -m pytest -q
+
+  docker:
+    name: docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t verirag .
+      - name: Import every runtime dependency inside the image
+        run: |
+          docker run --rm verirag python -c "import torch, faiss, bm25s, transformers, sentence_transformers, streamlit
+          from minicheck.minicheck import MiniCheck
+          import verirag.pipeline
+          print('torch', torch.__version__)"
+
 # ──────────────────────────────────────────────────────────────────────────
 #  Akshat Gupta
 #  Website   https://akshatgcodes.in
