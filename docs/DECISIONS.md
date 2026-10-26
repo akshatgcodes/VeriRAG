@@ -8,7 +8,7 @@
 
 **Decision:** A separate verifier. MiniCheck is the primary one, with DeBERTa-v3 NLI as the baseline.
 
-**Reason:** An LLM checking its own answer tends to repeat the reasoning that produced the error. A small classifier is deterministic and fast enough for CPU, and it can be benchmarked on its own (`scripts/eval_verifier.py` on LLM-AggreFact). MiniCheck is trained specifically to check LLM output against grounding documents, so it fits this job better than general NLI.
+**Reason:** An LLM checking its own answer tends to repeat the reasoning that produced the error. A small classifier is deterministic and fast enough for CPU, and it can be benchmarked on its own (`scripts/eval_verifier.py` on LLM-AggreFact). MiniCheck is trained specifically to check LLM output against grounding documents, so it fits this job better than general NLI. It was also faster in a local smoke test: about 2 seconds against about 18–22 seconds for the windowed NLI verifier on the same 3 claims × 2 sources, with both giving the same labels.
 
 **Tradeoff:** It is one more model to download and hold in memory. A classifier also can't explain *why* a claim fails, it only gives a score.
 

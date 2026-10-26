@@ -92,7 +92,8 @@ See [DEPLOY.md](DEPLOY.md).
 ## Known local-only limitations
 
 - The first run of each model downloads its weights from the Hugging Face Hub, which can take several minutes.
-- Verification is the slowest stage on CPU. With the NLI verifier on an Apple Silicon laptop, 3 claims against 2 sources took about 18 seconds, including the first model warm-up.
+- On CPU, verifier speed varies a lot. In a local smoke test on an Apple Silicon laptop (3 claims against 2 sources), MiniCheck took about 2 seconds and the windowed NLI verifier took about 18–22 seconds.
+- MiniCheck's weights (about 3 GB) are cached under `data/models/`. If a download is interrupted, delete that folder and run again. Otherwise the app falls back to the NLI verifier with a warning.
 - On macOS, `torch` must be imported before `faiss`, or the process can segfault from duplicate OpenMP runtimes. The code already does this. Keep the order if you add new entry points.
 
 ---
