@@ -77,8 +77,8 @@ def get_verifier(settings: Settings) -> Verifier:
             return MiniCheckVerifier(
                 settings.minicheck_model, str(settings.data_dir / "models" / "minicheck")
             )
-        except ImportError:
-            warnings.warn("minicheck not installed; falling back to the NLI verifier")
+        except (ImportError, ValueError, OSError) as e:
+            warnings.warn(f"MiniCheck unavailable ({e}); falling back to the NLI verifier")
     return NLIVerifier(settings.nli_model)
 
 
