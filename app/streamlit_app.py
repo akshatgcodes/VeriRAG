@@ -2,6 +2,7 @@ import html
 import sys
 from pathlib import Path
 
+import requests
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -65,9 +66,20 @@ query = st.text_input("Ask a question about the indexed documents",
                       placeholder="When was Python 3.0 released?")
 
 if query:
-    pipe = load_pipeline()
+    try:
+        pipe = load_pipeline()
+    except ValueError as e:  # e.g. GROQ_API_KEY missing
+        st.error(str(e))
+        st.stop()
     with st.spinner("Retrieving, answering, verifying..."):
-        result = pipe.answer(query, decompose=decompose)
+        try:
+            result = pipe.answer(query, decompose=decompose)
+        except requests.ConnectionError:
+            st.error(f"Could not reach the LLM ({pipe.llm.name}). Is `ollama serve` running?")
+            st.stop()
+        except requests.HTTPError as e:
+            st.error(f"LLM request failed: {e}")
+            st.stop()
 
     st.markdown(render_answer(result), unsafe_allow_html=True)
     if result.abstained:
