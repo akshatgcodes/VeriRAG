@@ -1,8 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "verirag"
-version = "0.1.0"
+version = "1.0.0"
 description = "Hallucination-aware RAG with claim-level citation verification"
 requires-python = ">=3.10"
+authors = [{ name = "Akshat Gupta", email = "akshatgcodes@gmail.com" }]
+# Core logic only. The model stack lives in the `ml` extra so CI stays light;
+# requirements.txt pins the full CPU deploy set used by the Docker image.
+dependencies = ["numpy", "requests", "python-dotenv"]
+
+[project.optional-dependencies]
+ml = [
+    "torch",
+    "transformers",
+    "accelerate",
+    "sentence-transformers",
+    "faiss-cpu",
+    "bm25s",
+    "pypdf",
+]
+app = ["streamlit"]
+eval = ["datasets"]
+dev = ["pytest", "streamlit"]
 
 [tool.setuptools]
 packages = ["verirag"]
