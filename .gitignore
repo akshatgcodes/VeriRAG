@@ -1,7 +1,12 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
-.env
 .pytest_cache/
-data/models/
 .DS_Store
+data/models/
+
+# env files (keep .env.example)
+.env
+.env.local
+.env.*.local
