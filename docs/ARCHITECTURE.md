@@ -6,7 +6,7 @@
 
 | Layer | Tech |
 |---|---|
-| Language | Python 3.11 |
+| Language | Python 3.11 (local, CI) · 3.12 (Docker image) |
 | Keyword search | bm25s (English stopwords) |
 | Dense search | BGE-M3 (`BAAI/bge-m3`) via sentence-transformers, FAISS `IndexFlatIP` on normalised vectors |
 | Fusion | Reciprocal Rank Fusion (k = 60) |
@@ -161,7 +161,7 @@ If the LLM can't be reached, the UI shows "Is `ollama serve` running?". If an HT
 
 ## 8. Deployment
 
-1. The `Dockerfile` builds a Python 3.11 slim image with CPU-only PyTorch and runs Streamlit on port 7860 as uid 1000, as Hugging Face Spaces expects.
+1. The `Dockerfile` builds a Python 3.12 slim image with CPU-only PyTorch and runs Streamlit on port 7860 as uid 1000, as Hugging Face Spaces expects.
 2. `LLM_PROVIDER=groq` is set in the image. `GROQ_API_KEY` comes from a Space secret.
 3. Models download from the Hugging Face Hub on first load. The index is built on first query if it isn't committed.
 
