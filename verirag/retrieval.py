@@ -18,6 +18,7 @@ class Hit:
 class HybridRetriever:
     def __init__(self, settings: Settings | None = None):
         import bm25s
+        import torch  # noqa: F401  (must load before faiss: duplicate OpenMP segfaults on macOS)
         import faiss
         from sentence_transformers import SentenceTransformer
 

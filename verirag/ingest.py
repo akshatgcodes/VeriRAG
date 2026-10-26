@@ -30,6 +30,7 @@ def load_chunks(raw_dir: Path, max_words: int, overlap_words: int) -> list[Chunk
 
 def build_index(settings: Settings | None = None) -> int:
     import bm25s
+    import torch  # noqa: F401  (must load before faiss: duplicate OpenMP segfaults on macOS)
     import faiss
     from sentence_transformers import SentenceTransformer
 
