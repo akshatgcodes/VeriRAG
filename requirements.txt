@@ -1,6 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 # Pinned to the versions tested together; Dependabot opens PRs to bump them.
-torch==2.14.1+cpu
+torch==2.14.1
 transformers==5.20.2
 accelerate==1.15.0
 sentence-transformers==6.2.0
