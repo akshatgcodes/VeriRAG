@@ -39,7 +39,7 @@ cp .env.example .env
 | `LLM_PROVIDER` | `ollama` (default) or `groq` |
 | `OLLAMA_MODEL` | Any pulled Ollama model. The default is `qwen3:4b` |
 | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → API Keys (only for `groq`) |
-| `GROQ_MODEL` | Default `llama-3.1-8b-instant` |
+| `GROQ_MODEL` | Default `qwen/qwen3.8-27b` |
 | `VERIRAG_VERIFIER` | `minicheck` (default) or `nli` |
 | `VERIRAG_DECOMPOSE` | `llm` (atomic claims, default) or `sentence` |
 

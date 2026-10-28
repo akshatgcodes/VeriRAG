@@ -42,7 +42,7 @@ class Settings:
     llm_provider: str = _env("LLM_PROVIDER", "ollama")
     ollama_url: str = _env("OLLAMA_URL", "http://localhost:11434")
     ollama_model: str = _env("OLLAMA_MODEL", "qwen3:4b")
-    groq_model: str = _env("GROQ_MODEL", "llama-3.1-8b-instant")
+    groq_model: str = _env("GROQ_MODEL", "qwen/qwen3.8-27b")
     groq_api_key: str = _env("GROQ_API_KEY", "")
 
     # Verification: "minicheck" (primary) or "nli" (DeBERTa baseline)
