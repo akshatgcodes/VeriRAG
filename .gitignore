@@ -10,3 +10,4 @@ data/models/
 .env
 .env.local
 .env.*.local
+data/bench/
