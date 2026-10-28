@@ -4,6 +4,21 @@ All notable changes to **VeriRAG** are documented here.
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+- SciFact retrieval ablation (`scripts/prepare_scifact.py`) with doc-level dedupe and nDCG@10, plus a Results section in the README
+- GPL-3.0 `LICENSE` file
+
+### 🔧 Changed
+- Default Groq model is now `qwen/qwen3.8-27b`, since `llama-3.1-8b-instant` was retired
+
+### 🐛 Fixed
+- Ollama calls timing out when Qwen3's thinking mode looped under greedy decoding
+- A stray `</think>` tag left at the start of answers
+
+---
+
 ## [1.0.0] — 2026-10-26
 
 ### ✨ Added
