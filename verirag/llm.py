@@ -7,7 +7,8 @@ import requests
 
 from .config import Settings
 
-_THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
+# The opening tag can be missing (e.g. Ollama with think disabled still emits "</think>").
+_THINK = re.compile(r"^.*?</think>", re.DOTALL)
 
 
 def strip_think(text: str) -> str:
@@ -33,6 +34,8 @@ class OllamaLLM:
                 "model": self.model,
                 "messages": messages,
                 "stream": False,
+                # Qwen3 thinking can loop under greedy decoding, and the block is stripped anyway.
+                "think": False,
                 "options": {"temperature": temperature},
             },
             timeout=300,

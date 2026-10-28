@@ -1,6 +1,7 @@
 from verirag.chunking import chunk_text, split_sentences
 from verirag.claims import llm_claims, parse_citations, split_answer
 from verirag.fusion import rrf
+from verirag.llm import strip_think
 from verirag.verify import MISCITED, PARTIAL, SUPPORTED, UNSUPPORTED, label_claim
 
 
@@ -84,3 +85,9 @@ def test_label_claim():
     assert label_claim(0.1, 0.8, 0.7, 0.4) == MISCITED
     assert label_claim(0.5, 0.5, 0.7, 0.4) == PARTIAL
     assert label_claim(0.1, 0.2, 0.7, 0.4) == UNSUPPORTED
+
+
+def test_strip_think():
+    assert strip_think("<think>hmm</think>\n\nAnswer [1].") == "Answer [1]."
+    assert strip_think("</think>\n\nAnswer [1].") == "Answer [1]."  # opening tag missing
+    assert strip_think("Answer [1].") == "Answer [1]."
