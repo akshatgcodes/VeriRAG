@@ -1,0 +1,5 @@
+# Example questions shown in the app for this corpus, one per line.
+When was Python 3.0 released?
+Who designed the Eiffel Tower?
+How tall is the Eiffel Tower?
+Who created Python and when?

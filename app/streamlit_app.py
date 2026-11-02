@@ -62,8 +62,35 @@ with st.sidebar:
         st.markdown(f'<span style="color:{color}">■</span> **{label}**: {tip}',
                     unsafe_allow_html=True)
 
-query = st.text_input("Ask a question about the indexed documents",
-                      placeholder="When was Python 3.0 released?")
+def load_examples() -> list[str]:
+    """Example questions for the current corpus: one per line in <data_dir>/examples.txt."""
+    path = Settings().data_dir / "examples.txt"
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [q.strip() for q in lines if q.strip() and not q.startswith("#")]
+
+
+# Callbacks run before the widgets are drawn, so they may set the text box's value.
+def use_example():
+    if st.session_state.example:
+        st.session_state.query = st.session_state.example
+    st.session_state.example = None  # reset, so the same example can be picked again
+
+
+def clear_query():
+    st.session_state.query = ""
+
+
+examples = load_examples()
+query = st.text_input("Ask a question about the indexed documents", key="query",
+                      placeholder=examples[0] if examples else "When was Python 3.0 released?")
+pick, clear = st.columns([5, 1], vertical_alignment="bottom")
+if examples:
+    pick.selectbox("Or pick an example", examples, index=None, key="example",
+                   placeholder="Example questions...", on_change=use_example,
+                   label_visibility="collapsed")
+clear.button("Clear", on_click=clear_query, width="stretch")
 
 if query:
     try:
