@@ -79,6 +79,12 @@ def test_pipeline_abstention_and_labels():
     assert [c.label for c in res.claims] == [SUPPORTED, UNSUPPORTED]
     assert res.grounded_rate == 0.5 and not res.abstained
 
+    # A real answer followed by a stray abstain line keeps only the answer.
+    pipe.llm = FakeLLM("Python was released in 1991 [1].\n\nI don't know based on the provided sources.")
+    res = pipe.answer("When?", decompose="sentence")
+    assert res.answer == "Python was released in 1991 [1]."
+    assert [c.label for c in res.claims] == [SUPPORTED] and not res.abstained
+
 
 def test_label_claim():
     assert label_claim(0.9, 0.9, 0.7, 0.4) == SUPPORTED
