@@ -9,13 +9,20 @@ All notable changes to **VeriRAG** are documented here.
 ### ✨ Added
 - SciFact retrieval ablation (`scripts/prepare_scifact.py`) with doc-level dedupe and nDCG@10, plus a Results section in the README
 - GPL-3.0 `LICENSE` file
+- Verifier results on LLM-AggreFact (MiniCheck 0.738 vs DeBERTa NLI 0.661 balanced accuracy) and an end-to-end report on 100 SciFact claims
+- Landing page (`docs/index.html`) with a real verified answer and the measured results
+- `--seed` and `--resume` for `eval_verifier.py`, and `--resume` for `eval_e2e.py`, so long runs survive crashes and network drops
 
 ### 🔧 Changed
 - Default Groq model is now `qwen/qwen3.8-27b`, since `llama-3.1-8b-instant` was retired
+- Verifiers run on CUDA or Apple MPS when available, and MiniCheck uses smaller batches to fit 16 GB of memory
+- `eval_verifier.py` shuffles LLM-AggreFact before sampling, since the test split is ordered by label
 
 ### 🐛 Fixed
 - Ollama calls timing out when Qwen3's thinking mode looped under greedy decoding
 - A stray `</think>` tag left at the start of answers
+- Groq rate limits (HTTP 429) crashing long runs; requests now wait and retry
+- An "I don't know" line appended after a real answer
 
 ---
 
