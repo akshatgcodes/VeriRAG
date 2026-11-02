@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VeriRAG: claim-level citation verification for RAG</title>
+<meta name="description" content="VeriRAG breaks every RAG answer into atomic claims and checks each one against the retrieved sources, so hallucinations and wrong citations become visible.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #57534e; --faint: #e7e5e4; --card: #ffffff;
+    --accent: #16a34a;
+    --supported: #16a34a; --miscited: #2563eb; --partial: #d97706; --unsupported: #dc2626;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --fg: #f5f5f4; --muted: #a8a29e; --faint: #292524; --card: #1c1917;
+      --accent: #22c55e;
+      --supported: #22c55e; --miscited: #60a5fa; --partial: #f59e0b; --unsupported: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; }
+  nav .brand { display: flex; gap: 10px; align-items: center; font-weight: 700; font-size: 18px; text-decoration: none; }
+  nav .links a { margin-left: 22px; color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav .links a:hover { color: var(--fg); }
+
+  header.hero { padding: 72px 0 56px; }
+  .hero h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 20px; max-width: 14ch; }
+  .hero h1 em { font-style: normal; color: var(--unsupported); text-decoration: underline wavy; text-underline-offset: 8px; text-decoration-thickness: 2px; }
+  .hero p.lede { font-size: 20px; color: var(--muted); max-width: 60ch; margin: 0 0 32px; }
+  .btn { display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; margin-right: 10px; }
+  .btn.primary { background: var(--fg); color: var(--bg); }
+  .btn.ghost { border: 1px solid var(--faint); }
+
+  section { padding: 56px 0; border-top: 1px solid var(--faint); }
+  .kicker { font: 600 13px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 12px; }
+  h2 { font-size: 32px; letter-spacing: -0.02em; margin: 0 0 16px; line-height: 1.15; }
+  p.sub { color: var(--muted); max-width: 64ch; margin: 0 0 32px; }
+
+  /* Demo */
+  .demo { background: var(--card); border: 1px solid var(--faint); border-radius: 16px; padding: 28px; }
+  .demo .q { font-weight: 600; margin-bottom: 18px; }
+  .demo .q span { font: 600 12px var(--mono); color: var(--muted); margin-right: 8px; }
+  .answer { font-size: 18px; line-height: 1.9; }
+  .claim { border-bottom: 3px solid; cursor: pointer; padding-bottom: 1px; transition: background .15s; }
+  .claim:hover, .claim.active { background: color-mix(in srgb, currentColor 8%, transparent); }
+  .claim.supported { border-color: var(--supported); }
+  .claim.miscited { border-color: var(--miscited); }
+  .claim.unsupported { border-color: var(--unsupported); }
+  .cite { font: 600 12px var(--mono); color: var(--muted); vertical-align: super; }
+  .verdict { margin-top: 22px; padding: 16px 18px; border-radius: 10px; background: var(--bg); border-left: 4px solid var(--faint); min-height: 92px; font-size: 15px; }
+  .verdict b { text-transform: uppercase; font: 700 12px var(--mono); letter-spacing: .06em; }
+  .verdict .score { font-family: var(--mono); color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 18px; font-size: 14px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  /* Pipeline */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: step; }
+  .step { background: var(--card); border: 1px solid var(--faint); border-radius: 14px; padding: 20px; position: relative; }
+  .step::before { counter-increment: step; content: "0" counter(step); font: 700 13px var(--mono); color: var(--accent); }
+  .step h3 { margin: 8px 0 8px; font-size: 18px; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+  .step code { font: 13px var(--mono); }
+
+  /* Results */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: var(--card); border: 1px solid var(--faint); border-radius: 14px; padding: 24px; }
+  .card h3 { margin: 0 0 4px; font-size: 18px; }
+  .card .note { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  .bar { display: grid; grid-template-columns: 130px 1fr 52px; align-items: center; gap: 10px; margin: 10px 0; font-size: 14px; }
+  .bar .track { height: 10px; background: var(--faint); border-radius: 5px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--muted); border-radius: 5px; }
+  .bar.best .fill { background: var(--accent); }
+  .bar .v { font-family: var(--mono); text-align: right; }
+  .bar.best { font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+  .big { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .pending { color: var(--muted); font-style: italic; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { padding: 7px 0; border-bottom: 1px solid var(--faint); text-align: left; }
+  td.n, th.n { text-align: right; font-family: var(--mono); }
+
+  /* Decisions */
+  details { border-bottom: 1px solid var(--faint); padding: 16px 0; }
+  summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; }
+  summary::before { content: "+"; display: inline-block; width: 24px; color: var(--accent); font-family: var(--mono); }
+  details[open] summary::before { content: "−"; }
+  details p { color: var(--muted); margin: 10px 0 0 24px; max-width: 70ch; }
+
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stack span { font: 13px var(--mono); padding: 6px 10px; border: 1px solid var(--faint); border-radius: 999px; color: var(--muted); }
+
+  footer { padding: 48px 0 64px; border-top: 1px solid var(--faint); color: var(--muted); font-size: 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  footer a { margin-left: 18px; }
+
+  @media (max-width: 760px) {
+    .steps, .grid2, .stats { grid-template-columns: 1fr; }
+    nav .links { display: none; }
+    .bar { grid-template-columns: 100px 1fr 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="#">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+      VeriRAG
+    </a>
+    <div class="links">
+      <a href="#demo">Example</a>
+      <a href="#how">How it works</a>
+      <a href="#results">Results</a>
+      <a href="https://github.com/akshatgcodes/VeriRAG">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>RAG answers cite sources. <em>Nobody checks them.</em></h1>
+    <p class="lede">VeriRAG breaks every answer into atomic claims and has a dedicated fact-checking model test each claim against every retrieved source. You see exactly which sentences are grounded, which cite the wrong paper, and which the model made up. It runs entirely on free, open-source models.</p>
+    <a class="btn primary" href="https://github.com/akshatgcodes/VeriRAG">View on GitHub</a>
+    <a class="btn ghost" href="#demo">See an example ↓</a>
+  </header>
+
+  <section id="demo">
+    <div class="kicker">Real output</div>
+    <h2>One answer, checked claim by claim</h2>
+    <p class="sub">A real run over 5,183 scientific abstracts (BEIR SciFact), generated by Qwen3 on Groq and verified by MiniCheck. Click any underlined claim to see its verdict.</p>
+
+    <div class="demo">
+      <div class="q"><span>QUERY</span>Is it true that a high microerythrocyte count raises vulnerability to severe anemia in homozygous alpha(+)-thalassemia trait subjects?</div>
+      <div class="answer" id="answer">
+        No, <span class="claim supported" data-i="0">the sources indicate that an increased erythrocyte count in homozygous alpha(+)-thalassaemia contributes to protection against severe malarial anaemia</span><span class="cite">[1]</span>.
+        <span class="claim miscited" data-i="1">This haematological profile reduces the risk of severe malarial anaemia compared to children of normal genotype</span><span class="cite">[2]</span>.
+        <span class="claim supported" data-i="2">The increased erythrocyte count and microcytosis are described as a biologically advantageous strategy against the reduction in erythrocyte count during acute malaria infection</span><span class="cite">[2][3]</span>.
+        Therefore, <span class="claim unsupported" data-i="3">the high count is associated with protection rather than increased vulnerability</span><span class="cite">[1]</span>.
+      </div>
+      <div class="verdict" id="verdict">Click a claim above.</div>
+      <div class="legend">
+        <span><i style="background:var(--supported)"></i>supported</span>
+        <span><i style="background:var(--miscited)"></i>miscited: true, wrong source</span>
+        <span><i style="background:var(--partial)"></i>partial</span>
+        <span><i style="background:var(--unsupported)"></i>unsupported: likely hallucination</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="kicker">Pipeline</div>
+    <h2>How it works</h2>
+    <p class="sub">Four stages. The verifier is a separate model, because an LLM grading its own answer shares the blind spots that produced the error.</p>
+    <div class="steps">
+      <div class="step"><h3>Retrieve</h3><p>BM25 and BGE-M3 dense search, fused with Reciprocal Rank Fusion, then reranked by <code>bge-reranker-v2-m3</code>.</p></div>
+      <div class="step"><h3>Generate</h3><p>Qwen3 writes an answer with numbered citations, locally via Ollama or on the Groq free tier. It can say "I don't know".</p></div>
+      <div class="step"><h3>Decompose</h3><p>The answer is split into atomic, self-contained claims, each tied to its sentence and citations.</p></div>
+      <div class="step"><h3>Verify</h3><p>MiniCheck scores every claim against <em>every</em> source, which separates a hallucination from a wrong citation.</p></div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="kicker">Measured, not claimed</div>
+    <h2>Results</h2>
+    <p class="sub">Every number below comes from a script in the repo and can be reproduced.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Retrieval: nDCG@10</h3>
+        <p class="note">BEIR SciFact test set: 300 queries, 5,183 abstracts</p>
+        <div class="bar"><span>BM25</span><div class="track"><div class="fill" style="width:65.6%"></div></div><span class="v">.656</span></div>
+        <div class="bar"><span>Dense (BGE-M3)</span><div class="track"><div class="fill" style="width:65.1%"></div></div><span class="v">.651</span></div>
+        <div class="bar"><span>Hybrid (RRF)</span><div class="track"><div class="fill" style="width:69.9%"></div></div><span class="v">.699</span></div>
+        <div class="bar best"><span>Hybrid + rerank</span><div class="track"><div class="fill" style="width:74.7%"></div></div><span class="v">.747</span></div>
+        <p class="note" style="margin:16px 0 0">Recall@10 rises from 0.774 (BM25) to 0.847 with hybrid search and reranking.</p>
+      </div>
+
+      <div class="card" id="verifier-card">
+        <h3>Verifier: balanced accuracy</h3>
+        <p class="note">LLM-AggreFact, 11 grounding benchmarks</p>
+        <div class="bar"><span>DeBERTa-v3 NLI</span><div class="track"><div class="fill" style="width:66.1%"></div></div><span class="v">.661</span></div>
+        <div class="bar best"><span>MiniCheck</span><div class="track"><div class="fill" style="width:73.8%"></div></div><span class="v">.738</span></div>
+        <table style="margin-top:14px">
+          <tr><th>Benchmark</th><th class="n">NLI</th><th class="n">MiniCheck</th></tr>
+          <tr><td>RAGTruth</td><td class="n">.750</td><td class="n"><b>.882</b></td></tr>
+          <tr><td>AggreFact-CNN</td><td class="n">.462</td><td class="n"><b>.666</b></td></tr>
+          <tr><td>TofuEval-MediaS</td><td class="n">.582</td><td class="n"><b>.738</b></td></tr>
+          <tr><td>ExpertQA</td><td class="n"><b>.607</b></td><td class="n">.531</td></tr>
+        </table>
+        <p class="note" style="margin:14px 0 0">MiniCheck wins on 10 of 11 benchmarks, so it is the default verifier. 100 examples per benchmark.</p>
+      </div>
+
+      <div class="card" id="e2e-card" style="grid-column: 1 / -1">
+        <h3>End to end: how grounded are the answers?</h3>
+        <p class="note">100 SciFact claims through the full pipeline</p>
+        <div class="stats">
+          <div><div class="big" style="color:var(--supported)">85.1%</div><p class="note" style="margin:6px 0 0">mean grounded rate: claims backed by some retrieved source</p></div>
+          <div><div class="big">81.0%</div><p class="note" style="margin:6px 0 0">mean citation accuracy: backed by the source they cite</p></div>
+          <div><div class="big" style="color:var(--unsupported)">12.2%</div><p class="note" style="margin:6px 0 0">of 551 claims unsupported by any source</p></div>
+        </div>
+        <div style="display:flex; height:14px; border-radius:7px; overflow:hidden">
+          <div style="width:79.3%; background:var(--supported)" title="supported 79.3%"></div>
+          <div style="width:4.2%; background:var(--miscited)" title="miscited 4.2%"></div>
+          <div style="width:4.4%; background:var(--partial)" title="partial 4.4%"></div>
+          <div style="width:12.2%; background:var(--unsupported)" title="unsupported 12.2%"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--supported)"></i>supported 79.3%</span>
+          <span><i style="background:var(--miscited)"></i>miscited 4.2%</span>
+          <span><i style="background:var(--partial)"></i>partial 4.4%</span>
+          <span><i style="background:var(--unsupported)"></i>unsupported 12.2%</span>
+        </div>
+        <p class="note" style="margin:16px 0 0">Answers by qwen3.8-27b on Groq, verified by MiniCheck. 79 of 100 questions were answered and 21 abstained. Even a 27B model answering only from retrieved abstracts makes about one claim in eight that no source backs.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">Design</div>
+    <h2>Engineering decisions</h2>
+    <details><summary>Why a separate verifier instead of asking the LLM to check itself?</summary>
+      <p>An LLM grading its own answer shares the blind spots that produced the error. A small classifier trained for grounding is deterministic, cheap to run and can be benchmarked on its own.</p></details>
+    <details><summary>Why score each claim against every source, not just the cited one?</summary>
+      <p>It separates two different failures. A claim no source supports is a hallucination. A claim another source supports is a citation error, and VeriRAG can name the right source.</p></details>
+    <details><summary>Why RRF to merge BM25 and dense results?</summary>
+      <p>BM25 scores and cosine similarities live on different scales. Reciprocal Rank Fusion only uses ranks, so it needs no weight tuning and still rewards chunks both retrievers agree on.</p></details>
+    <details><summary>Why a sentence window for the NLI baseline?</summary>
+      <p>NLI models are trained on short premises and truncate at 512 tokens. Scoring 3-sentence windows and taking the maximum keeps the premise in the range the model was trained on.</p></details>
+  </section>
+
+  <section>
+    <div class="kicker">Stack</div>
+    <h2>Built with free, open models</h2>
+    <div class="stack">
+      <span>Python</span><span>PyTorch</span><span>bm25s</span><span>FAISS</span><span>BGE-M3</span><span>bge-reranker-v2-m3</span>
+      <span>Qwen3</span><span>Ollama</span><span>Groq</span><span>MiniCheck</span><span>DeBERTa-v3 NLI</span><span>Streamlit</span><span>Docker</span>
+    </div>
+  </section>
+
+  <footer>
+    <span>Akshat Gupta · GPL-3.0</span>
+    <span>
+      <a href="https://github.com/akshatgcodes/VeriRAG">GitHub</a>
+      <a href="https://akshatgcodes.in">Website</a>
+      <a href="https://linkedin.com/in/akshatgcodes">LinkedIn</a>
+    </span>
+  </footer>
+</div>
+
+<script>
+  // Verdicts from the real run (MiniCheck probabilities; threshold 0.5).
+  const V = [
+    { label: "supported", text: "Supported by the cited source [1].", cited: 0.962, best: 0.962, src: 1 },
+    { label: "miscited", text: "True, but the cited source [2] doesn't say it. Source [1] does.", cited: 0.452, best: 0.966, src: 1 },
+    { label: "supported", text: "Supported by the cited source [2].", cited: 0.956, best: 0.956, src: 2 },
+    { label: "unsupported", text: "Split into claims, this sentence also asserts that the count is \"not associated with increased vulnerability\". No retrieved source says that, so it is flagged.", cited: 0.031, best: 0.044, src: 2 },
+  ];
+  const box = document.getElementById("verdict");
+  document.querySelectorAll(".claim").forEach(el => el.addEventListener("click", () => {
+    document.querySelectorAll(".claim.active").forEach(c => c.classList.remove("active"));
+    el.classList.add("active");
+    const v = V[+el.dataset.i];
+    const color = `var(--${v.label})`;
+    box.style.borderLeftColor = color;
+    box.innerHTML = `<b style="color:${color}">${v.label}</b><br>${v.text}<br>` +
+      `<span class="score">cited source score ${v.cited.toFixed(2)} · best source [${v.src}] score ${v.best.toFixed(2)}</span>`;
+  }));
+  document.querySelector(".claim.miscited").click();
+</script>
+</body>
+</html>

@@ -23,7 +23,7 @@ Set these as Space **secrets/variables** (Settings → Variables and secrets). N
 | Variable | Required | Where it's set |
 |---|---|---|
 | `GROQ_API_KEY` | ✅ | Space secret |
-| `GROQ_MODEL` | ❌ | Space variable (default `llama-3.1-8b-instant`) |
+| `GROQ_MODEL` | ❌ | Space variable (default `qwen/qwen3.8-27b`) |
 | `VERIRAG_VERIFIER` | ❌ | Space variable (`minicheck` or `nli`) |
 
 > After changing a variable, restart the Space. Running containers don't pick up new values.

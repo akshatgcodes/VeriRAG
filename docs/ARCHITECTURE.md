@@ -11,7 +11,7 @@
 | Dense search | BGE-M3 (`BAAI/bge-m3`) via sentence-transformers, FAISS `IndexFlatIP` on normalised vectors |
 | Fusion | Reciprocal Rank Fusion (k = 60) |
 | Reranker | `BAAI/bge-reranker-v2-m3` cross-encoder |
-| LLM | Ollama (`qwen3:4b`) or Groq (`llama-3.1-8b-instant`), plain HTTP via `requests` |
+| LLM | Ollama (`qwen3:4b`) or Groq (`qwen/qwen3.8-27b`), plain HTTP via `requests` |
 | Verifier | MiniCheck `flan-t5-large` (primary), `MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli` (baseline) |
 | UI | Streamlit |
 | Hosting | Docker image for Hugging Face Spaces (CPU) |

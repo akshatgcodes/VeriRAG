@@ -106,6 +106,9 @@ class VeriRAG:
             {"role": "user", "content": ANSWER_USER.format(
                 sources=format_sources(sources), question=query)},
         ])
+        # Qwen3 sometimes answers and then appends the abstain line as well; keep it
+        # only when it is the whole answer.
+        answer = answer.replace(ABSTAIN, "").strip() or answer
         t["generation"] = time.perf_counter() - t0
 
         t0 = time.perf_counter()

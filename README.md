@@ -38,7 +38,7 @@ A normal RAG system retrieves documents, lets an LLM write an answer with citati
 - **Citation repair.** If a claim is true but cites the wrong source (or none), VeriRAG names the source that actually supports it.
 - **Hybrid retrieval.** BM25 and BGE-M3 dense search are fused with RRF, then reranked by a cross-encoder.
 - **Two swappable verifiers.** MiniCheck (built for grounding checks) and a DeBERTa-v3 NLI baseline, with a benchmark script to compare them.
-- **Eval harness.** Retrieval ablations (Recall@k, MRR), verifier balanced accuracy on LLM-AggreFact, and an end-to-end hallucination report.
+- **Eval harness.** Retrieval ablations (Recall@k, MRR, nDCG), verifier balanced accuracy on LLM-AggreFact, and an end-to-end hallucination report.
 
 ---
 
@@ -52,6 +52,61 @@ A normal RAG system retrieves documents, lets an LLM write an answer with citati
 | Frontend | Streamlit |
 | Eval | LLM-AggreFact · custom Python scripts |
 | Infra | Docker · Hugging Face Spaces |
+
+---
+
+## Results
+
+### Retrieval
+
+[BEIR SciFact](https://github.com/beir-cellar/beir) test set: 300 queries over 5,183 scientific abstracts. Each system's chunk ranking is collapsed to documents before scoring.
+
+| System | Recall@10 | MRR@10 | nDCG@10 |
+|---|---|---|---|
+| BM25 | 0.774 | 0.626 | 0.656 |
+| Dense (BGE-M3) | 0.790 | 0.616 | 0.651 |
+| Hybrid (RRF) | 0.834 | 0.665 | 0.699 |
+| Hybrid + rerank | **0.847** | **0.722** | **0.747** |
+
+RRF beats both single retrievers without any weight tuning, and the cross-encoder adds another 0.05 nDCG@10. Reproduce with `scripts/prepare_scifact.py`, then `build_index.py` and `eval_retrieval.py --k 10`.
+
+### Verifier
+
+Balanced accuracy on [LLM-AggreFact](https://huggingface.co/datasets/lytang/LLM-AggreFact): 11 grounding benchmarks, with 100 shuffled test examples from each (seed 0) and a 0.5 threshold.
+
+| Benchmark | DeBERTa-v3 NLI | MiniCheck (Flan-T5-L) |
+|---|---|---|
+| AggreFact-CNN | 0.462 | **0.666** |
+| AggreFact-XSum | 0.616 | **0.682** |
+| ClaimVerify | 0.621 | **0.670** |
+| ExpertQA | **0.607** | 0.531 |
+| FactCheck-GPT | 0.701 | **0.747** |
+| Lfqa | 0.841 | **0.868** |
+| RAGTruth | 0.750 | **0.882** |
+| Reveal | 0.772 | **0.859** |
+| TofuEval-MediaS | 0.582 | **0.738** |
+| TofuEval-MeetB | 0.618 | **0.756** |
+| Wice | 0.704 | **0.724** |
+| **Average** | 0.661 | **0.738** |
+
+MiniCheck wins on 10 of 11 benchmarks and by 7.7 points on average, which is why it is the default verifier. Its largest lead is on RAGTruth (+13 points), the benchmark closest to VeriRAG's own setting. The NLI baseline is weakest on long news articles (CNN), even with the sliding window. With 100 examples per benchmark, single-benchmark numbers can move by a few points. Reproduce with `eval_verifier.py --verifier {nli,minicheck} --limit 100`.
+
+### End to end
+
+100 SciFact test claims, each asked as "Is it true that …?", run through the full pipeline over the SciFact corpus. Answers come from `qwen/qwen3.8-27b` on Groq, claims are split by the same model, and MiniCheck verifies them.
+
+| | |
+|---|---|
+| Questions answered | 79 (21 abstained with "I don't know") |
+| Claims checked | 551 |
+| Supported by the cited source | 79.3% |
+| Miscited (true, but a different source supports it) | 4.2% |
+| Partially supported | 4.4% |
+| Unsupported | 12.2% |
+| **Mean grounded rate** (supported or miscited) | **85.1%** |
+| **Mean citation accuracy** (supported by the cited source) | **81.0%** |
+
+So even a 27B model answering only from retrieved abstracts makes about one claim in eight that no source backs, and about one in twenty-five cites the wrong source. Read the unsupported rate as an upper bound: it also counts the model's own arithmetic ("493 per million ≈ 1 in 2,028") and statements about the sources themselves ("the sources do not say …"), which no abstract states word for word. Reproduce with `scripts/eval_e2e.py data/bench/scifact/questions_e2e_100.jsonl` (set `LLM_PROVIDER=groq` and `VERIRAG_DATA_DIR=data/bench/scifact`).
 
 ---
 

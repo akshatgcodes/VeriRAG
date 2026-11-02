@@ -1,13 +1,15 @@
 """LLM providers behind one interface: Ollama for local dev, Groq (free tier) for the demo."""
 
 import re
+import time
 from typing import Protocol
 
 import requests
 
 from .config import Settings
 
-_THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
+# The opening tag can be missing (e.g. Ollama with think disabled still emits "</think>").
+_THINK = re.compile(r"^.*?</think>", re.DOTALL)
 
 
 def strip_think(text: str) -> str:
@@ -33,6 +35,8 @@ class OllamaLLM:
                 "model": self.model,
                 "messages": messages,
                 "stream": False,
+                # Qwen3 thinking can loop under greedy decoding, and the block is stripped anyway.
+                "think": False,
                 "options": {"temperature": temperature},
             },
             timeout=300,
@@ -50,13 +54,22 @@ class GroqLLM:
         self.model, self.api_key = model, api_key
         self.name = f"groq/{model}"
 
-    def chat(self, messages: list[dict], temperature: float = 0.0) -> str:
-        resp = requests.post(
-            self.URL,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={"model": self.model, "messages": messages, "temperature": temperature},
-            timeout=120,
-        )
+    def chat(self, messages: list[dict], temperature: float = 0.0, max_retries: int = 6) -> str:
+        # The free tier rate-limits per minute; wait out 429s instead of failing a long eval run.
+        for attempt in range(max_retries + 1):
+            resp = requests.post(
+                self.URL,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model, "messages": messages, "temperature": temperature},
+                timeout=120,
+            )
+            if resp.status_code != 429 or attempt == max_retries:
+                break
+            try:
+                wait = float(resp.headers.get("retry-after", ""))
+            except ValueError:
+                wait = 2.0 ** attempt
+            time.sleep(min(wait, 60.0))
         resp.raise_for_status()
         return strip_think(resp.json()["choices"][0]["message"]["content"])
 
