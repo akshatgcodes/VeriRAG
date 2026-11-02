@@ -46,3 +46,26 @@ def test_app_renders_verified_answer(monkeypatch):
     assert not at.exception and not at.error
     assert [m.value for m in at.metric][:2] == ["50%", "50%"]
     assert any("#dc2626" in md.value for md in at.markdown)  # hallucination underlined red
+
+
+def test_example_picker_and_clear_button(monkeypatch):
+    import verirag.pipeline as pipeline
+
+    original = pipeline.VeriRAG.__init__
+
+    def fake_init(self, settings=None, **_):
+        original(self, settings, retriever=FakeRetriever(), llm=FakeLLM(), verifier=FakeVerifier())
+
+    monkeypatch.setattr(pipeline.VeriRAG, "__init__", fake_init)
+
+    at = AppTest.from_file(APP, default_timeout=60).run()
+    example = at.selectbox(key="example").options[0]
+    at.selectbox(key="example").select(example).run()
+    assert not at.exception
+    assert at.text_input(key="query").value == example
+    assert at.selectbox(key="example").value is None  # reset so it can be picked again
+    assert at.metric  # the picked question was answered
+
+    at.button[0].click().run()
+    assert at.text_input(key="query").value == ""
+    assert not at.metric
