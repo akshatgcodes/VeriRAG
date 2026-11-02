@@ -1,0 +1,17 @@
+{
+  "verifier": "minicheck/flan-t5-large",
+  "limit": 100,
+  "seed": 0,
+  "AggreFact-CNN": 0.6658986175115207,
+  "AggreFact-XSum": 0.6818181818181819,
+  "ClaimVerify": 0.6699561403508771,
+  "ExpertQA": 0.5312024353120244,
+  "FactCheck-GPT": 0.7467105263157895,
+  "Lfqa": 0.8676767676767676,
+  "RAGTruth": 0.8817204301075269,
+  "Reveal": 0.8589511754068716,
+  "TofuEval-MediaS": 0.7380952380952381,
+  "TofuEval-MeetB": 0.755685510071475,
+  "Wice": 0.7241758241758242,
+  "average": 0.7383537133492815
+}

@@ -1,0 +1,17 @@
+{
+  "verifier": "nli/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
+  "limit": 100,
+  "seed": 0,
+  "AggreFact-CNN": 0.46236559139784944,
+  "AggreFact-XSum": 0.6161616161616161,
+  "ClaimVerify": 0.6206140350877193,
+  "ExpertQA": 0.606544901065449,
+  "FactCheck-GPT": 0.700657894736842,
+  "Lfqa": 0.8414141414141414,
+  "RAGTruth": 0.749615975422427,
+  "Reveal": 0.7718505123568415,
+  "TofuEval-MediaS": 0.5823412698412699,
+  "TofuEval-MeetB": 0.6182586094866797,
+  "Wice": 0.7043956043956043,
+  "average": 0.6612927410333127
+}
