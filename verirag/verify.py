@@ -15,6 +15,15 @@ class Verifier(Protocol):
     def score(self, premise: str, claims: list[str]) -> list[float]: ...
 
 
+def _device() -> str:
+    """CUDA or Apple MPS when present, else CPU (the Docker image)."""
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+    return "mps" if torch.backends.mps.is_available() else "cpu"
+
+
 class NLIVerifier:
     """DeBERTa NLI baseline. NLI models are trained on short premises, so we slide a
     window of sentences over the chunk and take the max entailment probability."""
@@ -23,7 +32,7 @@ class NLIVerifier:
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         self.tok = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name).eval()
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name).eval().to(_device())
         self.entail_idx = next(
             int(i) for i, label in self.model.config.id2label.items()
             if label.lower().startswith("entail")
@@ -49,7 +58,7 @@ class NLIVerifier:
                 enc = self.tok(
                     [p for p, _ in batch], [h for _, h in batch],
                     truncation=True, max_length=512, padding=True, return_tensors="pt",
-                )
+                ).to(self.model.device)
                 logits = self.model(**enc).logits
                 probs.extend(logits.softmax(-1)[:, self.entail_idx].tolist())
         n = len(windows)
@@ -60,10 +69,13 @@ class MiniCheckVerifier:
     """MiniCheck (Tang et al., 2024): a small model trained specifically to check
     LLM output against grounding documents. Handles long documents internally."""
 
-    def __init__(self, model_name: str, cache_dir: str):
+    def __init__(self, model_name: str, cache_dir: str, batch_size: int = 4):
         from minicheck.minicheck import MiniCheck
 
-        self.scorer = MiniCheck(model_name=model_name, cache_dir=cache_dir)
+        # The library default of 16 long chunks per batch fills a 16 GB Mac's unified memory.
+        self.scorer = MiniCheck(model_name=model_name, cache_dir=cache_dir, batch_size=batch_size)
+        # device_map="auto" leaves it on CPU on Macs; inputs follow the model's device.
+        self.scorer.model.model.to(_device())
         self.name = f"minicheck/{model_name}"
 
     def score(self, premise: str, claims: list[str]) -> list[float]:
